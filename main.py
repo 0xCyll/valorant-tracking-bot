@@ -40,7 +40,7 @@ async def get_puuids():
         if puuid != data['puuid']:
             tracked_users[username]['puuid'] = puuid
             await send_valorant_update(username, puuid)
-            await asyncio.sleep(360) # waits 360 seconds to prevent api spam, and unrealistic for a game to be done in less than 5
+    await asyncio.sleep(360) # waits 360 seconds to prevent api spam, and unrealistic for a game to be done in less than 5
 
 async def send_valorant_update(username, puuid):
     global match_ids
