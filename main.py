@@ -114,16 +114,4 @@ async def send_valorant_update(username, puuid):
         channel = bot.get_channel(channel_id)
         await channel.send(e)
 
-
-@bot.command()
-async def rs(ctx):
-    if ctx.author.id == 1234567890:  # Replace with your user ID
-        await ctx.send("Restarting...")
-        # Add your restart logic here
-
-
-@bot.command()
-async def test(ctx):
-    if ctx.author.id == 1234567890:  # Replace with your user ID
-        await ctx.send("test")
 bot.run('YOUR TOKEN HERE')
