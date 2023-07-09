@@ -1,0 +1,12 @@
+{
+  "Player1": {
+    "tag": "Tag1",
+    "puuid": "",
+    "last_match_id": ""
+  },
+  "Player2": {
+    "tag": "Tag2",
+    "puuid": "",
+    "last_match_id": ""
+  }
+}
