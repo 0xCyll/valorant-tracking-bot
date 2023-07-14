@@ -3,12 +3,15 @@ from discord.ext import commands, tasks
 import requests
 import asyncio
 import json
+import subprocess
 import os
+import traceback
+import sys
 
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 tracked_users_file = "tracked_users.json"
 tracked_matches_file = "tracked_matches.json"
-
+ChannelID = "channelidhere" # the channel id you want your games to be sent in
 tracked_users = {}
 tracked_matches = []
 
@@ -34,33 +37,54 @@ async def on_ready():
             await get_puuids()
             await asyncio.sleep(50)  # Wait 50 seconds to prevent API spam and allow realistic game durations
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())
+   
 
 
 async def get_puuids():
     print("Getting puuids")
     try:
         for username, data in tracked_users.items():
-            username_data = requests.get(f'https://api.henrikdev.xyz/valorant/v1/account/{username}/{data["tag"]}').json()
-            puuid = username_data['data']['puuid']
+            username_data = None  
+            if 'puuid' in data and data['puuid']:
+                puuid = data['puuid']
+            else:
+                username_data = requests.get(f'https://api.henrikdev.xyz/valorant/v1/account/{username}/{data["tag"]}').json()
+                puuid = username_data['data']['puuid']
+                tracked_users[username]['puuid'] = puuid
+                with open(tracked_users_file, "w") as f:
+                    json.dump(tracked_users, f)
             if puuid != data['puuid']:
                 tracked_users[username]['puuid'] = puuid
+                with open(tracked_users_file, "w") as f:
+                    json.dump(tracked_users, f)
+            if username_data and 'name' in username_data['data'] and username != username_data['data']['name']:
+                tracked_users[username]['name'] = username_data['data']['name']
+                with open(tracked_users_file, "w") as f:
+                    json.dump(tracked_users, f)
+            if username_data and 'tag' in username_data['data'] and data['tag'] != username_data['data']['tag']:
+                tracked_users[username]['tag'] = username_data['data']['tag']
+                with open(tracked_users_file, "w") as f:
+                    json.dump(tracked_users, f)
             await send_valorant_update(username, puuid)
     except Exception as e:
-        print(e)
+        print(traceback.format_exc())
+
 
 
 async def send_valorant_update(username, puuid):
-    print("Send function running")
     global tracked_matches
     try:
         latest_match = requests.get(f"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/{puuid}?size=1").json()
         match_data = latest_match['data'][0]
         match_id = match_data['metadata']['matchid']
         if match_id not in tracked_matches:
+            print("Send function running")
             metadata = match_data['metadata']
             players = match_data['players']['all_players']
-
+            tracked_matches.append(match_id)
+            with open(tracked_matches_file, "w") as f:
+                json.dump(tracked_matches, f)
             map_name = metadata['map']
             game_length = convert_seconds(metadata['game_length'])
             rounds_played = metadata['rounds_played']
@@ -87,31 +111,32 @@ async def send_valorant_update(username, puuid):
                 character = player['character']
                 kda = f"{player['stats']['kills']}/{player['stats']['deaths']}/{player['stats']['assists']}"
 
-                if mode == "competitive":
+                if mode == "Competitive":
                     rank = player['currenttier_patched']
                     if player['team'] == "Blue":
                         blue_team_desc += f"- {rank} {name}#{tag} as {character} - K/D/A: {kda}\n"
                     elif player['team'] == "Red":
                         red_team_desc += f"- {rank} {name}#{tag} as {character} - K/D/A: {kda}\n"
+                elif mode == "Deathmatch":
+                    blue_team_desc += f"- {name}#{tag} as {character} - K/D/A: {kda}\n"
                 else:
                     if player['team'] == "Blue":
                         blue_team_desc += f"- {name}#{tag} as {character} - K/D/A: {kda}\n"
                     elif player['team'] == "Red":
                         red_team_desc += f"- {name}#{tag} as {character} - K/D/A: {kda}\n"
+            if mode == "Deathmatch":
+                embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=False)
+            else:
+                embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=False)
+                embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=False)
 
-            embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=False)
-            embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=False)
-
-            channel_id = 1234567890  # Replace with your desired channel ID
-            channel = bot.get_channel(channel_id)
+            channel = bot.get_channel(ChannelID)
             await channel.send(embed=embed)
-            tracked_matches.append(match_id)
-            with open(tracked_matches_file, "w") as f:
-                json.dump(tracked_matches, f)
+            
     except Exception as e:
-        print(e)
-        channel_id = 1234567890  # Replace with your desired channel ID
-        channel = bot.get_channel(channel_id)
-        await channel.send(e)
+        print(traceback.format_exc())
 
-bot.run('YOUR TOKEN HERE')
+
+
+
+bot.run('Your Token')
