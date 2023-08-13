@@ -2,6 +2,7 @@
 # Valorant Tracking Bot
 
 **Valorant Tracking Bot** is a simple way to track player's matches on Discord! 🎮
+![image](https://github.com/0xCyll/valorant-tracking-bot/assets/57342571/415d5c7b-09b7-432d-9369-5b8e963bf410)
 
 ## Setup
 
@@ -30,6 +31,7 @@
 
 1. Once the setup is complete, the bot will automatically track the specified users' matches.
 2. You can use Slash commands to manage and add additional users to be tracked.
+3. The Colored Circles indicate players who are in the same party.
 
 ## Contributing
 
