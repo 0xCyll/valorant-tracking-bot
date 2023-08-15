@@ -9,8 +9,8 @@ import random
 import re
 
 
-LOGGINGCHANNEL= "ENTER CHANNEL ID FOR ANY ERROR LOGS"
-MAINCHANNEL= "Enter THE CHANNEL ID FOR WHERE YOU WANT YOUR MATCHES TO BE OUTPUTTED"
+LOGGINGCHANNEL= int("ENTER CHANNEL ID FOR ANY ERROR LOGS")
+MAINCHANNEL= int("Enter THE CHANNEL ID FOR WHERE YOU WANT YOUR MATCHES TO BE OUTPUTTED")
 BOTTOKEN= "ENTER TOKEN OF DISCORD BOT"
 
 
@@ -104,8 +104,10 @@ async def track_user(ctx, username: str, tag: str):
                 tracked_users[username] = {'name': username_data['data']['name'], 'tag': tag, 'puuid': puuid}
                 with open(tracked_users_file, "w") as f:
                     json.dump(tracked_users, f)
-                    tracked_users = json.load(f)
                 await ctx.send(f"Successfully added {username}#{tag} to the tracked users.")
+                with open(tracked_users_file, "r") as f:
+                    tracked_users = json.load(f)
+                await get_puuids()
                     
         else:
             await ctx.send("Invalid username and tag. Please provide a valid Valorant username and tag.")
@@ -299,6 +301,10 @@ async def send_valorant_update(username, puuid):
             await channel.send(embed=embed,view=view)
             
     except Exception as e:
+       if latest_match['status'] == "429":
+           await logger("api rate limit reached this is expected.")
+       else:
+           await logger(e)
        pass 
 
 
