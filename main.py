@@ -12,9 +12,11 @@ import re
 LOGGINGCHANNEL= int("ENTER CHANNEL ID FOR ANY ERROR LOGS")
 MAINCHANNEL= int("Enter THE CHANNEL ID FOR WHERE YOU WANT YOUR MATCHES TO BE OUTPUTTED")
 BOTTOKEN= "ENTER TOKEN OF DISCORD BOT"
-
-
-
+REGION = "eu" # eu by default change if you want
+## the following region codes are
+## eu for europe, 
+## br, latam and na(however br and latam will be internally converted to na)
+## ap for asia and kr for korea 
 class Bot(commands.Bot):
     def __init__(self):
         intents=discord.Intents.default()
@@ -92,10 +94,12 @@ async def view_tracked_users(ctx):
 async def track_user(ctx, username: str, tag: str):
     global tracked_users
     try:
-        username_data = requests.get(f'https://api.henrikdev.xyz/valorant/v1/account/{username}/{tag}').json()
+        safeusername = username.replace(" ", "%20") 
+        username_data = requests.get(f'https://api.henrikdev.xyz/valorant/v1/account/{safeusername}/{tag}').json()
 
         if 'data' in username_data:
             puuid = username_data['data']['puuid']
+            region = username_data['data']['region']
             user_key = f"{username}#{tag}"
 
             if user_key in tracked_users:
@@ -104,12 +108,14 @@ async def track_user(ctx, username: str, tag: str):
                 tracked_users[username] = {'name': username_data['data']['name'], 'tag': tag, 'puuid': puuid}
                 with open(tracked_users_file, "w") as f:
                     json.dump(tracked_users, f)
-                await ctx.send(f"Successfully added {username}#{tag} to the tracked users.")
+                await ctx.send(f"Successfully added {username}#{tag} in the {region} region to the tracked users.")
                 with open(tracked_users_file, "r") as f:
                     tracked_users = json.load(f)
                 await get_puuids()
                     
         else:
+            if username_data['status'] == "429":
+                await logger("api rate limit reached this is expected.")
             await ctx.send("Invalid username and tag. Please provide a valid Valorant username and tag.")
     except Exception as e:
         await logger(traceback.format_exc())
@@ -160,7 +166,7 @@ async def get_puuids():
 
 async def val_rr_gains(puuid,matchid):
     try:
-        mmr_view = requests.get(f"https://api.henrikdev.xyz/valorant/v1/by-puuid/lifetime/mmr-history/eu/{puuid}?size=14").json()
+        mmr_view = requests.get(f"https://api.henrikdev.xyz/valorant/v1/by-puuid/lifetime/mmr-history/{REGION}/{puuid}?size=14").json()
         matches = mmr_view["data"]
 
         for match in matches:
@@ -179,7 +185,7 @@ async def val_rr_gains(puuid,matchid):
 async def send_valorant_update(username, puuid):
     global tracked_matches
     try:
-        latest_match = requests.get(f"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/{puuid}?size=1").json()
+        latest_match = requests.get(f"https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/{REGION}/{puuid}?size=1").json()
         match_data = latest_match['data'][0]
         match_id = match_data['metadata']['matchid']
         if match_id not in tracked_matches:
@@ -245,7 +251,12 @@ async def send_valorant_update(username, puuid):
                 kda = f"{player['stats']['kills']}/{player['stats']['deaths']}/{player['stats']['assists']}"
 
                 if mode == "Competitive":
-                     winning_team = "Blue" if blue_score > red_score else "Red"
+                     if blue_score == red_score:
+                      winning_team = "Draw"
+                     elif blue_score > red_score:
+                       winning_team ="Blue"
+                     else:
+                      winning_team = "Red"
                      mmrchange = await val_rr_gains(puuid1,match_id)
                      if mmrchange == None:
                         mmrchange = "0"
@@ -264,7 +275,12 @@ async def send_valorant_update(username, puuid):
                         player_info = f"- {character} {name}  {kda}\n"
 
                 else:
-                     winning_team = "Blue" if blue_score > red_score else "Red"
+                     if blue_score == red_score:
+                      winning_team = "Draw"
+                     elif blue_score > red_score:
+                       winning_team ="Blue"
+                     else:
+                      winning_team = "Red"
                      kd_ratio = player['stats']['kills'] / max(player['stats']['deaths'], 1)
                      if party_color:
                          player_info = f"- {character} {party_color} {name}  \n {kda}\n"
@@ -285,14 +301,18 @@ async def send_valorant_update(username, puuid):
             blue_team_desc = "".join(info for info, _ in blue_p)
             red_team_desc = "".join(info for info, _ in red_p)        
             if mode == "Deathmatch":
-                embed.add_field(name=f"Deathmatch Players", value=Deathmatch_desc, inline=False)
+             embed.add_field(name=f"Deathmatch Players", value=Deathmatch_desc, inline=False)
             else:
-                 if winning_team == "Blue":
-                     embed.add_field(name=f"Blue Team - {blue_score} (Winner)", value=blue_team_desc, inline=True)
-                     embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=True)
-                 else:
-                     embed.add_field(name=f"Red Team - {red_score} (Winner)", value=red_team_desc, inline=True)
-                     embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=True)
+             if winning_team =="Draw":
+                 embed.add_field(name=f"Blue Team - {blue_score} (DRAW)", value=blue_team_desc, inline=True)
+                 embed.add_field(name=f"Red Team - {red_score} (DRAW)", value=red_team_desc, inline=True)
+                 
+             elif winning_team == "Blue":
+                 embed.add_field(name=f"Blue Team - {blue_score} (Winner)", value=blue_team_desc, inline=True)
+                 embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=True)
+             else:
+                 embed.add_field(name=f"Red Team - {red_score} (Winner)", value=red_team_desc, inline=True)
+                 embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=True)
             
 
             channel = bot.get_channel(MAINCHANNEL)
@@ -385,7 +405,12 @@ class ChangeviewButton(discord.ui.View):
                 kda = f"{player['stats']['kills']}/{player['stats']['deaths']}/{player['stats']['assists']}"
 
                 if mode == "Competitive":
-                     winning_team = "Blue" if blue_score > red_score else "Red"
+                     if blue_score == red_score:
+                      winning_team = "Draw"
+                     elif blue_score > red_score:
+                       winning_team ="Blue"
+                     else:
+                      winning_team = "Red"
                      mmrchange = await val_rr_gains(puuid1,match_id)
                      if mmrchange == None:
                         mmrchange = "0"
@@ -402,7 +427,12 @@ class ChangeviewButton(discord.ui.View):
                     else:
                         player_info = f"- {character} {name} {kda}\n"
                 else:
-                     winning_team = "Blue" if blue_score > red_score else "Red"
+                     if blue_score == red_score:
+                      winning_team = "Draw"
+                     elif blue_score > red_score:
+                       winning_team ="Blue"
+                     else:
+                      winning_team = "Red"
                      kd_ratio = player['stats']['kills'] / max(player['stats']['deaths'], 1)
                      if party_color:
                         player_info = f"- {character} {party_color}{name} {kda}\n"
@@ -423,14 +453,18 @@ class ChangeviewButton(discord.ui.View):
             blue_team_desc = "".join(info for info, _ in blue_p)
             red_team_desc = "".join(info for info, _ in red_p)        
             if mode == "Deathmatch":
-                embed.add_field(name=f"Deathmatch Players", value=Deathmatch_desc, inline=False)
+             embed.add_field(name=f"Deathmatch Players", value=Deathmatch_desc, inline=False)
             else:
-                 if winning_team == "Blue":
-                     embed.add_field(name=f"Blue Team - {blue_score} (Winner)", value=blue_team_desc, inline=True)
-                     embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=True)
-                 else:
-                     embed.add_field(name=f"Red Team - {red_score} (Winner)", value=red_team_desc, inline=True)
-                     embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=True)
+             if winning_team =="Draw":
+                 embed.add_field(name=f"Blue Team - {blue_score} (DRAW)", value=blue_team_desc, inline=True)
+                 embed.add_field(name=f"Red Team - {red_score} (DRAW)", value=red_team_desc, inline=True)
+                 
+             elif winning_team == "Blue":
+                 embed.add_field(name=f"Blue Team - {blue_score} (Winner)", value=blue_team_desc, inline=True)
+                 embed.add_field(name=f"Red Team - {red_score}", value=red_team_desc, inline=True)
+             else:
+                 embed.add_field(name=f"Red Team - {red_score} (Winner)", value=red_team_desc, inline=True)
+                 embed.add_field(name=f"Blue Team - {blue_score}", value=blue_team_desc, inline=True)
             view=ChangeviewButton()
             view.add_item(discord.ui.Button(label="Tracker.gg",style=discord.ButtonStyle.link,url=f"https://tracker.gg/valorant/match/{match_id}"))
             await interaction.response.defer()
@@ -498,7 +532,12 @@ class ChangeviewButton(discord.ui.View):
             score = player['stats']['score']
             kda = f"{player['stats']['kills']}/{player['stats']['deaths']}/{player['stats']['assists']}"
             if mode == "Competitive":
-                 winning_team = "Blue" if blue_score > red_score else "Red"
+                 if blue_score == red_score:
+                      winning_team = "Draw"
+                 elif blue_score > red_score:
+                   winning_team ="Blue"
+                 else:
+                  winning_team = "Red"
                  mmrchange = await val_rr_gains(puuid1,match_id)
                  if mmrchange == None:
                     mmrchange = "0"
@@ -515,7 +554,12 @@ class ChangeviewButton(discord.ui.View):
                 else:
                     player_info = f"-{score} {name}#{tag}[{level}] as {character} {kda}\n"
             else:
-                 winning_team = "Blue" if blue_score > red_score else "Red"
+                 if blue_score == red_score:
+                    winning_team = "Draw"
+                 elif blue_score > red_score:
+                   winning_team ="Blue"
+                 else:
+                  winning_team = "Red"
                  kd_ratio = player['stats']['kills'] / max(player['stats']['deaths'], 1)
                  if party_color:
                     player_info = f"-{score} {party_color}{name}#{tag}[{level}] as {character} {kda}\n"
