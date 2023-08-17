@@ -1,6 +1,6 @@
 
 # Valorant Tracking Bot
-
+Invite the bot using [This invite](https://discord.com/oauth2/authorize?client_id=1084845920996302988&permissions=125968&scope=bot) and start using the / commmands to get started if you dont want to setup the bot yourself!
 **Valorant Tracking Bot** is a simple way to track player's matches on Discord! 🎮
 ![image](https://github.com/0xCyll/valorant-tracking-bot/assets/57342571/415d5c7b-09b7-432d-9369-5b8e963bf410)
 
