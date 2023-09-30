@@ -124,13 +124,12 @@ async def track_user(ctx, username: str, tag: str):
 @bot.hybrid_command(name='remove', description="Remove a user from the tracker, input username not tag", with_app_command=True)
 async def tracker_remove(ctx, username: str,):
 
-        if username not in tracked_users['username']:
+        if username not in tracked_users[username]:
             return await ctx.send('User is not currently being tracked.', ephemeral=True)
 
-        del tracked_users['username']
+        del tracked_users[username]
 
         await ctx.send(f'Stopped tracking {username}.')
-
 
 
 @bot.event
