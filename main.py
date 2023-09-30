@@ -121,7 +121,7 @@ async def track_user(ctx, username: str, tag: str):
         await logger(traceback.format_exc())
         await ctx.send("An error occurred while processing your request.")
 
-@bot.hybrid.command(name='remove', description="Remove a user from the tracker, input username not tag", with_app_command=True)
+@bot.hybrid_command(name='remove', description="Remove a user from the tracker, input username not tag", with_app_command=True)
 async def tracker_remove(ctx, username: str,):
 
         if username not in tracked_users['username']:
